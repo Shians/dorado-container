@@ -6,21 +6,37 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  push_to_ghcr:
+    name: Push Docker image to GitHub Container Registry
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Check out the repo
+        uses: actions/checkout@v5
 
-      - name: Build and push image
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+
+      - name: Build and push Docker images
+        id: push
         uses: docker/build-push-action@v5
         with:
-          push: true
-          tags: ghcr.io/shians/dorado:1.1.1-cuda12.8-rocky8
+          context: .
           file: ./Dockerfile
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
