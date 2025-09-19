@@ -22,3 +22,5 @@ jobs:
           push: true
           tags: ghcr.io/shians/dorado:1.1.1-cuda12.8-rocky8
           file: ./Dockerfile
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
