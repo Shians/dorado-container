@@ -20,5 +20,5 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: true
-          tags: ghcr.io/${{ github.repository_owner,, }}/dorado:1.1.1-cuda12.8-rocky8
+          tags: ghcr.io/shians/dorado:1.1.1-cuda12.8-rocky8
           file: ./Dockerfile
