@@ -14,15 +14,6 @@ RUN set -euxo pipefail \
  && tar -xzf /tmp/dorado.tar.gz -C /opt/dorado --strip-components=1 \
  && rm -f /tmp/dorado.tar.gz
 
-RUN mkdir -p /usr/local/bin && \
-    /bin/bash -lc 'cat > /usr/local/bin/dorado << "EOF"\n\
-#!/usr/bin/env bash\n\
-set -euo pipefail\n\
-export LD_LIBRARY_PATH="/opt/dorado/lib:${LD_LIBRARY_PATH:-}"\n\
-exec /opt/dorado/bin/dorado "$@"\n\
-EOF' && \
-    chmod +x /usr/local/bin/dorado
-
 ENV PATH="/opt/dorado/bin:${PATH}"
 
 # Sanity check
