@@ -17,6 +17,10 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v5
 
+      - name: Read Dorado version
+        id: version
+        run: echo "DORADO_VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
         with:
@@ -30,6 +34,9 @@ jobs:
         with:
           images: |
             ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.DORADO_VERSION }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build and push Docker image
         id: push
@@ -38,6 +45,8 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
+          build-args: |
+            DORADO_VER=${{ steps.version.outputs.DORADO_VERSION }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
@@ -51,6 +60,10 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v5
+
+      - name: Read Dorado version
+        id: version
+        run: echo "DORADO_VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
 
       - name: Free up disk space
         run: |
@@ -66,6 +79,7 @@ jobs:
 
       - name: Build Singularity image
         run: |
+          echo "Building Dorado version: ${{ steps.version.outputs.DORADO_VERSION }}"
           docker run --rm --privileged \
             -v ${{ github.workspace }}:/work \
             -w /work \
@@ -79,12 +93,8 @@ jobs:
           # Get repository name in lowercase
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
 
-          # Generate tag
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            TAG="latest"
-          else
-            TAG="${{ github.ref_name }}"
-          fi
+          # Get version
+          DORADO_VER="${{ steps.version.outputs.DORADO_VERSION }}"
 
           # Create directory for Singularity config
           mkdir -p ${{ github.workspace }}/.singularity
@@ -97,13 +107,23 @@ jobs:
             quay.io/singularity/singularity:v3.10.4 \
             remote login -u ${{ github.actor }} --password-stdin oras://ghcr.io
 
-          # Push using Singularity via Docker
+          # Push with version tag
           docker run --rm --privileged \
             -v ${{ github.workspace }}:/work \
             -v ${{ github.workspace }}/.singularity:/root/.singularity \
             -w /work \
             quay.io/singularity/singularity:v3.10.4 \
-            push dorado.sif oras://ghcr.io/${REPO_LOWER}:${TAG}-singularity
+            push dorado.sif oras://ghcr.io/${REPO_LOWER}:${DORADO_VER}-singularity
+
+          # Push latest tag if on main branch
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            docker run --rm --privileged \
+              -v ${{ github.workspace }}:/work \
+              -v ${{ github.workspace }}/.singularity:/root/.singularity \
+              -w /work \
+              quay.io/singularity/singularity:v3.10.4 \
+              push dorado.sif oras://ghcr.io/${REPO_LOWER}:latest-singularity
+          fi
 
       - name: Upload Singularity image as artifact
         uses: actions/upload-artifact@v4

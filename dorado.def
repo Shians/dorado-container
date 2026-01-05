@@ -1,13 +1,19 @@
 Bootstrap: docker
 From: nvidia/cuda:12.8.1-runtime-rockylinux8
 
+%files
+    VERSION /tmp/VERSION
+
 %post
     # Install dependencies
     yum -y install curl tar ca-certificates && \
     yum clean all && rm -rf /var/cache/yum
 
-    # Set dorado version and download URL
-    DORADO_VER=1.1.1
+    # Read dorado version from VERSION file
+    DORADO_VER=$(cat /tmp/VERSION | tr -d '[:space:]')
+    echo "Building Dorado version: ${DORADO_VER}"
+
+    # Set download URL and checksum
     DORADO_URL=https://cdn.oxfordnanoportal.com/software/analysis/dorado-${DORADO_VER}-linux-x64.tar.gz
     DORADO_SHA256=08f6ef13b23867bddaa2abee292627e617ca2d2d68d9379dcae703add9940360
 
@@ -22,16 +28,22 @@ From: nvidia/cuda:12.8.1-runtime-rockylinux8
     # Sanity check
     /opt/dorado/bin/dorado --version || (echo "dorado not found" && exit 1)
 
+    # Create dynamic labels JSON
+    cat > /.singularity.d/labels.json <<EOF
+{
+    "Author": "dorado-container",
+    "Version": "${DORADO_VER}",
+    "Dorado_Version": "${DORADO_VER}",
+    "org.label-schema.schema-version": "1.0",
+    "org.label-schema.build-date": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+}
+EOF
+
 %environment
     export PATH="/opt/dorado/bin:${PATH}"
 
 %runscript
     exec dorado "$@"
-
-%labels
-    Author dorado-container
-    Version 1.1.1
-    Dorado_Version 1.1.1
 
 %help
     This container provides the Dorado basecaller for Oxford Nanopore sequencing data.
