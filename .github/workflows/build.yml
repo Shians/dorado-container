@@ -1,4 +1,4 @@
-name: Build Dorado Image
+name: Build Dorado Images
 
 on:
   workflow_dispatch:
@@ -6,8 +6,8 @@ on:
     branches: [ main ]
 
 jobs:
-  push_to_ghcr:
-    name: Push Docker image to GitHub Container Registry
+  build_docker:
+    name: Build and push Docker image to GHCR
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -31,7 +31,7 @@ jobs:
           images: |
             ghcr.io/${{ github.repository }}
 
-      - name: Build and push Docker images
+      - name: Build and push Docker image
         id: push
         uses: docker/build-push-action@v5
         with:
@@ -40,3 +40,62 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  build_singularity:
+    name: Build and push Singularity image to GHCR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v5
+
+      - name: Build Singularity image
+        run: |
+          docker run --rm --privileged \
+            -v ${{ github.workspace }}:/work \
+            -w /work \
+            quay.io/singularity/singularity:v3.10.4 \
+            build dorado.sif dorado.def
+
+      - name: Login and push to GHCR (OCI format)
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get repository name in lowercase
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+
+          # Generate tag
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            TAG="latest"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+
+          # Create directory for Singularity config
+          mkdir -p ${{ github.workspace }}/.singularity
+
+          # Login using Singularity via Docker
+          echo "$GHCR_TOKEN" | docker run --rm -i --privileged \
+            -v ${{ github.workspace }}:/work \
+            -v ${{ github.workspace }}/.singularity:/root/.singularity \
+            -w /work \
+            quay.io/singularity/singularity:v3.10.4 \
+            remote login -u ${{ github.actor }} --password-stdin oras://ghcr.io
+
+          # Push using Singularity via Docker
+          docker run --rm --privileged \
+            -v ${{ github.workspace }}:/work \
+            -v ${{ github.workspace }}/.singularity:/root/.singularity \
+            -w /work \
+            quay.io/singularity/singularity:v3.10.4 \
+            push dorado.sif oras://ghcr.io/${REPO_LOWER}:${TAG}-singularity
+
+      - name: Upload Singularity image as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dorado-singularity
+          path: dorado.sif
+          retention-days: 30
