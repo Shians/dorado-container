@@ -1,6 +1,6 @@
 FROM nvidia/cuda:12.8.1-runtime-rockylinux8
 
-RUN yum -y install curl tar ca-certificates && \
+RUN yum -y install curl tar ca-certificates procps-ng && \
     yum clean all && rm -rf /var/cache/yum
 
 ARG DORADO_VER
