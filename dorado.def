@@ -2,20 +2,23 @@ Bootstrap: docker
 From: nvidia/cuda:12.8.1-runtime-rockylinux8
 
 %files
-    VERSION /tmp/VERSION
+    VERSION /VERSION
+    CHECKSUM /CHECKSUM
 
 %post
     # Install dependencies
     yum -y install curl tar ca-certificates procps-ng && \
     yum clean all && rm -rf /var/cache/yum
 
-    # Read dorado version from VERSION file
-    DORADO_VER=$(cat /tmp/VERSION | tr -d '[:space:]')
-    echo "Building Dorado version: ${DORADO_VER}"
+    # Read version and checksum from files
+    DORADO_VER=$(cat /VERSION | tr -d '[:space:]')
+    DORADO_SHA256=$(cat /CHECKSUM | tr -d '[:space:]')
 
-    # Set download URL and checksum
+    echo "Building Dorado version: ${DORADO_VER}"
+    echo "Expected SHA256: ${DORADO_SHA256}"
+
+    # Set download URL
     DORADO_URL=https://cdn.oxfordnanoportal.com/software/analysis/dorado-${DORADO_VER}-linux-x64.tar.gz
-    DORADO_SHA256=08f6ef13b23867bddaa2abee292627e617ca2d2d68d9379dcae703add9940360
 
     # Download and install dorado
     set -euxo pipefail

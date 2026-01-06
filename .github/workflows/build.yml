@@ -45,8 +45,6 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          build-args: |
-            DORADO_VER=${{ steps.version.outputs.DORADO_VERSION }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
