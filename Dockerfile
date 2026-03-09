@@ -18,10 +18,22 @@ RUN set -euxo pipefail \
  && tar -xzf /tmp/dorado.tar.gz -C /opt/dorado --strip-components=1 \
  && rm -f /tmp/dorado.tar.gz /tmp/CHECKSUM /tmp/VERSION
 
-ENV PATH="/opt/dorado/bin:${PATH}"
+ENV PATH="/opt/dorado/bin:/opt/conda/bin:${PATH}"
 
 # Sanity check
 RUN command -v dorado && dorado --version || (echo "dorado not found" && exit 1)
+
+# Install micromamba and bioconda packages
+RUN set -euxo pipefail \
+ && curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj -C /usr/local bin/micromamba \
+ && micromamba install -y \
+        --root-prefix /opt/conda \
+        --prefix /opt/conda \
+        -c conda-forge -c bioconda -c defaults \
+        bioconda::minimap2=2.30 \
+        bioconda::samtools=1.21 \
+        conda-forge::pigz=2.8 \
+ && micromamba clean -afy
 
 LABEL org.opencontainers.image.title="Dorado"
 LABEL org.opencontainers.image.description="Dorado basecaller for Oxford Nanopore sequencing data"

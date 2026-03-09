@@ -31,6 +31,19 @@ From: nvidia/cuda:12.8.1-runtime-rockylinux8
     # Sanity check
     /opt/dorado/bin/dorado --version || (echo "dorado not found" && exit 1)
 
+    # Install micromamba
+    curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj -C /usr/local bin/micromamba
+    /usr/local/bin/micromamba shell init --shell bash --root-prefix /opt/conda
+
+    # Install bioconda packages via micromamba
+    /usr/local/bin/micromamba install -y \
+        --root-prefix /opt/conda \
+        --prefix /opt/conda \
+        -c conda-forge -c bioconda -c defaults \
+        bioconda::minimap2=2.30 \
+        bioconda::samtools=1.21 \
+        conda-forge::pigz=2.8
+
     # Create dynamic labels JSON
     cat > /.singularity.d/labels.json <<EOF
 {
@@ -43,7 +56,7 @@ From: nvidia/cuda:12.8.1-runtime-rockylinux8
 EOF
 
 %environment
-    export PATH="/opt/dorado/bin:${PATH}"
+    export PATH="/opt/dorado/bin:/opt/conda/bin:${PATH}"
 
 %runscript
     exec dorado "$@"
